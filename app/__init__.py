@@ -1,0 +1,1 @@
+"""Foxbat application."""
