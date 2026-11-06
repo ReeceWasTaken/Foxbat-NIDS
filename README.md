@@ -71,29 +71,6 @@ Run tests, add screenshots in `screenshots/`, and publish **source code only**. 
 - Older migrated events may have `legacy` origin; sample PCAP events are not live captures.
 - A database backup is recommended before updating.
 
-## Portfolio showcase
-
-Add sanitized screenshots under `screenshots/` before publishing. Recommended images: `dashboard.png`, `investigation.png`, and `traffic.png`. See [release checklist](docs/RELEASE_CHECKLIST.md).
-
-**Tech stack:** Python, Scapy, FastAPI, SQLite, HTML/CSS/JavaScript, pytest, GitHub Actions.
-
-**License:** No license is included in this release-ready package; choose one before inviting external reuse.
-
-## Windows desktop edition (PyWebview)
-
-Build a native Windows app window using `build-windows.ps1`. The resulting folder is `dist\Foxbat`, containing `Foxbat.exe` and bundled dependencies. See [desktop instructions](docs/DESKTOP.md). A local build can be self-signed with the development certificate (not publicly trusted) and still requires Npcap for live capture and Edge WebView2 Runtime for the window. The desktop database lives under `%LOCALAPPDATA%\Foxbat`.
-
-## Releasing a new version
-
-Change **only** `VERSION` in `app/version.py` (for example, `0.8.8`). The API's OpenAPI metadata, `/api/health`, and the dashboard footer use that value automatically. The build scripts regenerate `version.iss` so Inno Setup uses the same version and installer filename. Avoid editing `version.iss` manually.
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\build-windows.ps1
-.\build-installer.ps1
-```
-
-`create-dev-certificate.ps1` sets up an optional **local-only** signing identity. The signing step is skipped with a warning if it is absent. Self-signed releases remain untrusted by other computers.
 
 ## Source layout
 
