@@ -2,7 +2,7 @@
 
 Foxbat is a **local-first, educational NIDS** featuring Scapy packet capture, offline PCAP inspection, rule-based detection, a FastAPI REST API, SQLite alert history, and a responsive security dashboard.
 
-> **Status: v0.8.8.** This is a portfolio prototype, **not** a production IDS. Detections are heuristics and require analyst validation.
+> **Status: v0.8.8.** This is a portfolio prototype, detections require analyst validation.
 
 ## Features
 
@@ -57,10 +57,6 @@ Authorized PCAP file --> Scapy PcapReader -------+
 ## First public beta release
 
 See [public release instructions](docs/PUBLIC_RELEASE.md), [release notes](docs/RELEASE_NOTES_v0.8.8.md), [security policy](SECURITY.md), and [changelog](CHANGELOG.md). After building the Windows installer, run `./prepare-release.ps1` to stage the installer and SHA-256 checksum. No public-trust code-signing certificate is provided.
-
-## GitHub publishing
-
-Run tests, add screenshots in `screenshots/`, and publish **source code only**. `.gitignore` excludes virtual environments, SQLite databases, and PCAPs. Review logs, screenshots, and commit history for private addresses or sensitive data before publishing. GitHub Actions runs pytest on pushes and pull requests.
 
 ## Security limitations
 
