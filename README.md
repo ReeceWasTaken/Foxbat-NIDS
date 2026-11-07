@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/Foxbat-logo.png" alt="Foxbat NIDS Logo" width="260">
+  <img src="assets/foxbat-logo.png" alt="Foxbat NIDS Logo" width="260">
 
   <h1>Foxbat NIDS</h1>
 
