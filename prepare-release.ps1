@@ -16,6 +16,6 @@ Copy-Item $installer $out
 $staged = Join-Path $out (Split-Path $installer -Leaf)
 $hash = (Get-FileHash $staged -Algorithm SHA256).Hash.ToLowerInvariant()
 "$hash  $(Split-Path $staged -Leaf)" | Set-Content (Join-Path $out 'SHA256SUMS.txt') -Encoding ascii
-Copy-Item '.\docs\RELEASE_NOTES_v0.8.8.md' (Join-Path $out 'RELEASE_NOTES.md')
+Copy-Item '.\RELEASE-NOTES-v0.8.14.md' (Join-Path $out 'RELEASE_NOTES.md')
 Write-Host "Release assets staged in $out"
 Write-Host "SHA256: $hash"

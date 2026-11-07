@@ -1,36 +1,43 @@
-# First public GitHub release — v0.8.8 Beta
+# Publishing Foxbat NIDS v0.8.14 to the existing GitHub repository
 
-## Before publishing
+Repository: https://github.com/ReeceWasTaken/Foxbat-NIDS
 
-1. Choose a license deliberately. **No open-source license is included.** Public GitHub visibility alone does not grant reuse rights. If you want open-source contributions, add an appropriate LICENSE file before inviting reuse.
-2. Check all files and Git history for secrets, personal data, internal IP addresses, and PCAP contents. Do not commit certificate private keys or `.pfx` files.
-3. Add real, sanitized dashboard screenshots to `screenshots/`.
-4. On Windows, run `./build-windows.ps1` and `./build-installer.ps1` in PowerShell. Verify tests, app startup, window movement, taskbar icon, shortcuts, capture, PCAP import, alerts, and installer/uninstaller.
-5. Run `./prepare-release.ps1` to generate a SHA-256 checksum and a release staging folder.
-6. Review `release-output/` before uploading. Only upload the installer, checksums, and relevant notes as release assets. Do not upload your development certificate private key.
+## Before committing
 
-## GitHub setup
+1. Inspect every file and existing Git history for secrets, credentials, private IPs, sensitive screenshots, real PCAPs, and databases.
+2. Add sanitized dashboard screenshots to `screenshots/` if available.
+3. Choose a license if you want to authorize reuse; no open-source license is currently granted.
+4. On Windows, run `./build-windows.ps1`, test the executable, and run `./build-installer.ps1`.
+5. Run `./prepare-release.ps1` to stage the installer, checksum, and release notes.
 
-Create a repository called `Foxbat-NIDS` under your GitHub account (if it does not already exist). From the extracted `Foxbat-Desktop` directory:
+## Upload to the existing repository
+
+**Recommended:** Clone the existing repository first; do not create another repository or blindly overwrite files.
 
 ```powershell
-git init
-git add .
-git status
-git commit -m "Prepare Foxbat NIDS v0.8.8 public beta"
-git branch -M main
-git remote add origin https://github.com/ReeceWasTaken/Foxbat-NIDS.git
-git push -u origin main
+git clone https://github.com/ReeceWasTaken/Foxbat-NIDS.git
+cd Foxbat-NIDS
 ```
 
-If the repository already exists, clone it and copy these files into the clone, or use its existing Git remote rather than running `git init` or adding a duplicate remote. Review `git status` before committing.
+Copy the **contents** of the packaged `Foxbat-Desktop` folder into the clone (not the containing folder), review differences, and then:
 
-Create a GitHub Release with tag `v0.8.8`, title `Foxbat NIDS v0.8.8 Beta`, and paste `docs/RELEASE_NOTES_v0.8.8.md`. Attach `Foxbat-NIDS-Setup-v0.8.8.exe` and `SHA256SUMS.txt` from `release-output/`.
+```powershell
+git status
+git diff --check
+git add .
+git status
+git commit -m "Prepare Foxbat NIDS v0.8.14 GitHub release"
+git push origin main
+```
 
-## Distribution disclosure
+If the existing default branch is not `main`, use its actual branch name. Review `git status` to confirm no databases, captures, build outputs, certificates, or other private files are staged.
 
-The Windows installer is self-signed for development. Other PCs do not automatically trust that signature; Windows may warn. Users should verify the SHA-256 checksum and obtain the installer only from the official repository release. Do not instruct users to disable antivirus or install your development certificate as a trusted root.
+## GitHub Release
 
-## After publishing
+After final Windows verification, create a release with tag `v0.8.14` and title `Foxbat NIDS v0.8.14 Beta`. Use `RELEASE-NOTES-v0.8.14.md` as the description and upload from `release-output/`:
 
-Test the published download on a separate clean Windows system or VM. Ensure the GitHub download checksum matches `SHA256SUMS.txt`. Only then link the release from your portfolio.
+- `Foxbat-NIDS-Setup-v0.8.14.exe`
+- `SHA256SUMS.txt`
+- `RELEASE_NOTES.md` (optional)
+
+The installer is **not** included in the source ZIP. Build and test it on Windows before publishing. The optional self-signed development certificate is not publicly trusted; do not distribute private keys or tell users to trust a development root certificate.

@@ -1,4 +1,4 @@
-// Native title-bar buttons are bridged to Python; leave dragging to the Windows worker.
+// Native title-bar buttons use the Python bridge; pywebview handles dragging.
 /* Desktop shell is explicitly enabled by the local launcher, not by an asynchronous API event. */
 (() => {
   const bar = document.getElementById('militaryTitlebar');
@@ -15,13 +15,8 @@
       return await window.pywebview.api[method]();
     } catch (error) { console.error('Window control failed:', method, error); }
   };
-  // Only the label region initiates movement; never the window buttons.
-  // Use a non-blocking native window movement worker instead of
-  // pywebview easy_drag or a modal Win32 caption message loop.
-  bar.querySelector('.titlebar-ident')?.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || event.detail > 1) return;
-    invoke('begin_drag');
-  });
+  // The label uses pywebview's native drag region. No JS mouse bridge
+  // is involved in dragging, so clicks remain responsive in WebView2.
   document.getElementById('windowMinimize')?.addEventListener('click', (event) => {
     event.stopPropagation(); invoke('minimize');
   });

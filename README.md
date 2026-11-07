@@ -1,80 +1,72 @@
-# Foxbat — Python Network Intrusion Detection System
+# Foxbat NIDS
 
-Foxbat is a **local-first, educational NIDS** featuring Scapy packet capture, offline PCAP inspection, rule-based detection, a FastAPI REST API, SQLite alert history, and a responsive security dashboard.
+**Foxbat NIDS v0.8.14** is an experimental Windows network intrusion detection system featuring a retro terminal-style dashboard, local alert history, packet analysis, and an embedded Microsoft Edge WebView2 desktop interface.
 
-> **Status: v0.8.8.** This is a portfolio prototype, detections require analyst validation.
+> **Status:** Beta / portfolio project. Detection is heuristic and may produce false positives or miss threats. Foxbat is not a substitute for production security monitoring.
 
 ## Features
 
-- Live IP packet monitoring with Scapy + Npcap (Windows)
-- Offline PCAP import, with repeat imports counted again
-- TCP port scan, SYN flood, ICMP flood, DNS rate and long-query heuristics
-- SQLite persistence with event origin (`live`, `pcap`, `demo`, `legacy`)
-- Searchable alerts, severity/origin filters, CSV export, charts and investigation details
-- Per-alert Markdown incident report download and GitHub Actions test workflow
+- Live network packet capture and analysis using Scapy and Npcap
+- Offline PCAP analysis, alerts, severity summaries, and dashboard analytics
+- FastAPI backend bound to the local loopback interface
+- Windows desktop interface using pywebview and WebView2
+- Frameless window with custom title bar and native drag behavior
+- Local SQLite persistence of detection history
+- Windows installer built with PyInstaller and Inno Setup
 
-## Run locally (Windows PowerShell)
+## Screenshots
+
+Add sanitized screenshots to [`screenshots/`](screenshots/) before publishing. Do not publish private IP addresses, real packet captures, credentials, or other sensitive network data.
+
+## Install on Windows
+
+Download `Foxbat-NIDS-Setup-v0.8.14.exe` from the **Releases** section after a release has been published. Verify its SHA-256 checksum against `SHA256SUMS.txt`. Install [Npcap](https://npcap.com/) separately for live packet capture. Microsoft Edge WebView2 Runtime is required for the desktop interface.
+
+Foxbat stores mutable application data in `%LOCALAPPDATA%\Foxbat` and installs by default to `%LOCALAPPDATA%\Foxbat NIDS`. **Before upgrading from older releases, back up `%LOCALAPPDATA%\Foxbat\foxbat.db`.** Older installer versions may require uninstalling first.
+
+The installer is signed only with a self-signed development certificate when one is available. This does **not** establish a publicly trusted publisher; Windows may display a warning.
+
+## Build from source
+
+Requires Windows, Python, PowerShell, and Inno Setup (to build the installer). From the repository root:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\build-windows.ps1
+& .\dist\Foxbat\Foxbat.exe
+.\build-installer.ps1
+.\prepare-release.ps1
+```
+
+`build-windows.ps1` creates a virtual environment, installs dependencies, runs tests, and packages the desktop executable. `build-installer.ps1` requires Inno Setup and produces `installer-output\Foxbat-NIDS-Setup-v0.8.14.exe`. `prepare-release.ps1` stages the installer, checksum, and release notes in `release-output/`. These generated directories are excluded from Git.
+
+For development or tests:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-desktop.txt
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open http://127.0.0.1:8000. Install [Npcap](https://npcap.com/) for live capture. Do not use `--reload` while capturing; use one server worker. Windows may require elevated permissions.
+## Project layout
 
-To test offline analysis:
-
-```powershell
-.\.venv\Scripts\python.exe samples\generate_demo_pcap.py
-.\.venv\Scripts\python.exe -m app.pcap samples\demo_scan.pcap
-```
-
-To export a report, open an alert in the dashboard and click **Download incident report (.md)**. The report is an analyst worksheet, not a verified incident conclusion.
-
-## Architecture
-
-```text
-Authorized Wi-Fi traffic --> Scapy AsyncSniffer --+
-                                                +--> ThreatDetector --> SQLite --> FastAPI --> Dashboard
-Authorized PCAP file --> Scapy PcapReader -------+
-```
-
-## API highlights
-
-| Endpoint | Purpose |
+| Path | Purpose |
 | --- | --- |
-| `GET /api/health` | Health check |
-| `GET /api/capture` | Live capture state |
-| `POST /api/capture/start` / `stop` | Local capture control |
-| `GET /api/alerts` | Search/filter alert history |
-| `GET /api/alerts/{id}` | Event evidence |
-| `GET /api/alerts/{id}/report` | Markdown incident worksheet |
-| `GET /api/alerts/export` | CSV export |
-| `GET /api/analytics` | Alert aggregates |
+| `app/` | FastAPI application, detection logic, packet capture, dashboard assets |
+| `desktop/` | pywebview launcher and local data paths |
+| `tests/` | Automated tests |
+| `assets/` | Foxbat icon and artwork |
+| `samples/` | Demo PCAP generation script |
+| `docs/` | Windows build, release, and security documentation |
+| `.github/workflows/` | GitHub Actions test workflow |
 
-## First public beta release
+## Security and privacy
 
-See [public release instructions](docs/PUBLIC_RELEASE.md), [release notes](docs/RELEASE_NOTES_v0.8.8.md), [security policy](SECURITY.md), and [changelog](CHANGELOG.md). After building the Windows installer, run `./prepare-release.ps1` to stage the installer and SHA-256 checksum. No public-trust code-signing certificate is provided.
+Foxbat is intended for **authorized network monitoring only**. The API is loopback-only and unauthenticated; do not expose it on public interfaces. Captures and alert records may contain sensitive network details. Do not commit local databases, PCAP files, signing keys, or certificates. See [SECURITY.md](SECURITY.md).
 
-## Security limitations
+## License
 
-- Keep the web server bound to `127.0.0.1`. The development API is not authenticated and should not be exposed publicly.
-- Monitor only interfaces and traffic you are authorized to inspect. Normal Wi-Fi capture does not provide visibility into all other clients.
-- Detection thresholds are static heuristics, not validated signatures; false positives and false negatives are expected.
-- Alerts store IP addresses and descriptions; treat exported reports as potentially sensitive.
-- Older migrated events may have `legacy` origin; sample PCAP events are not live captures.
-- A database backup is recommended before updating.
+No open-source license has been selected yet. Source visibility on GitHub does not itself grant permission to copy, modify, or redistribute the code. A license can be added later by the repository owner.
 
+## Release history
 
-## Source layout
-
-- `app/`: API, packet capture, detection logic, and dashboard assets
-- `desktop/`: WebView2 desktop launcher and local data paths
-- `assets/`: selected Foxbat logo and Windows icon
-- `tests/`: automated checks for detection, APIs, and version consistency
-- `docs/`: desktop instructions and release checklist
-- `build-*.ps1`, `Foxbat-Installer.iss`: Windows packaging
-
-Historical patch notes were consolidated into this README and `docs/` to keep the repository tidy.
+See [CHANGELOG.md](CHANGELOG.md) and [v0.8.14 release notes](RELEASE-NOTES-v0.8.14.md).

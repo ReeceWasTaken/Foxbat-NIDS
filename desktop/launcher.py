@@ -4,127 +4,89 @@ The API stays on loopback, with one Uvicorn server and one capture worker.
 """
 import socket
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 import sys
 import threading
 import time
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from desktop.paths import configure_database
+from desktop.paths import configure_database, user_data_dir
+
+
+# Keep native WinForms / WebView2 objects OUTSIDE the object pywebview
+# recursively inspects when generating its JavaScript API. Previously the
+# public `controls.window` attribute exposed the complete native window graph,
+# causing get_functions() recursion and DefaultFont/FontFamily errors.
+_native_window = None
+_native_maximized = False
 
 
 class WindowControls:
-    """Limited native-window actions exposed to the trusted local dashboard."""
+    """A deliberately leaf-only JS API: exactly three public methods.
 
-    def __init__(self):
-        self.window = None
-        self.maximized = False
-        self._drag_lock = threading.Lock()
-        self._dragging = False
+    No instance attributes, especially no pywebview Window / .NET objects.
+    """
 
-    def begin_drag(self):
-        """Move the native top-level window from a background worker.
-
-        WebView2's JS bridge is asynchronous; posting a non-client mouse-down
-        from that bridge does not reliably start a native Windows drag. Instead
-        we track the left mouse button and move the HWND directly. No blocking
-        Win32 modal message loop runs on the bridge or WebView2 UI thread.
-        """
-        if sys.platform != "win32":
-            return False
-        with self._drag_lock:
-            if self._dragging:
-                return False
-            self._dragging = True
-        threading.Thread(target=self._drag_worker, name="foxbat-window-drag",
-                         daemon=True).start()
-        return True
-
-    def _drag_worker(self):
-        import ctypes
-        from ctypes import wintypes
-
-        user32 = ctypes.WinDLL("user32", use_last_error=True)
-        user32.EnumWindows.argtypes = [ctypes.c_void_p, wintypes.LPARAM]
-        user32.EnumWindows.restype = wintypes.BOOL
-        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
-        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-        user32.IsWindowVisible.argtypes = [wintypes.HWND]
-        user32.IsWindowVisible.restype = wintypes.BOOL
-        user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
-        user32.GetWindowTextLengthW.restype = ctypes.c_int
-        user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
-        user32.GetWindowTextW.restype = ctypes.c_int
-        user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
-        user32.GetCursorPos.restype = wintypes.BOOL
-        user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
-        user32.GetWindowRect.restype = wintypes.BOOL
-        user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
-        user32.GetAsyncKeyState.restype = ctypes.c_short
-        user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND,
-                                       ctypes.c_int, ctypes.c_int,
-                                       ctypes.c_int, ctypes.c_int, wintypes.UINT]
-        user32.SetWindowPos.restype = wintypes.BOOL
-        callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-        try:
-            handles = []
-            @callback_type
-            def visit(hwnd, _):
-                owner = wintypes.DWORD()
-                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
-                if owner.value != os.getpid() or not user32.IsWindowVisible(hwnd):
-                    return True
-                size = user32.GetWindowTextLengthW(hwnd)
-                if size:
-                    buf = ctypes.create_unicode_buffer(size + 1)
-                    user32.GetWindowTextW(hwnd, buf, size + 1)
-                    if buf.value == "Foxbat NIDS":
-                        handles.append(hwnd)
-                return True
-            user32.EnumWindows(visit, 0)
-            if not handles:
-                return
-            hwnd = handles[0]
-            cursor = wintypes.POINT()
-            rect = wintypes.RECT()
-            if not user32.GetCursorPos(ctypes.byref(cursor)) or not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-                return
-            start_x, start_y = cursor.x, cursor.y
-            left, top = rect.left, rect.top
-            # Wait only while the physical left mouse button remains pressed.
-            # SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE.
-            flags = 0x0001 | 0x0004 | 0x0010
-            deadline = time.monotonic() + 30
-            while time.monotonic() < deadline and user32.GetAsyncKeyState(0x01) & 0x8000:
-                if not user32.GetCursorPos(ctypes.byref(cursor)):
-                    break
-                x, y = left + cursor.x - start_x, top + cursor.y - start_y
-                user32.SetWindowPos(hwnd, None, x, y, 0, 0, flags)
-                time.sleep(0.016)
-        finally:
-            with self._drag_lock:
-                self._dragging = False
+    __slots__ = ()
 
     def minimize(self):
-        self.window.minimize()
+        if _native_window is None:
+            return False
+        _native_window.minimize()
         return True
 
     def toggle_maximize(self):
-        if self.maximized:
-            self.window.restore()
+        global _native_maximized
+        if _native_window is None:
+            return False
+        if _native_maximized:
+            _native_window.restore()
         else:
-            self.window.maximize()
-        self.maximized = not self.maximized
-        return self.maximized
+            _native_window.maximize()
+        _native_maximized = not _native_maximized
+        return _native_maximized
 
     def close(self):
-        self.window.destroy()
+        if _native_window is None:
+            return False
+        _native_window.destroy()
         return True
 
 
+def setup_logging():
+    """Keep a small local log so installed builds can be diagnosed."""
+    log_dir = user_data_dir() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(log_dir / "desktop.log", maxBytes=1_000_000,
+                                  backupCount=2, encoding="utf-8")
+    logging.basicConfig(level=logging.INFO, handlers=[handler],
+                        format="%(asctime)s %(levelname)s %(message)s")
+    logging.info("Foxbat v0.8.14 desktop starting")
+
+
 def main():
+    """Start the production desktop shell with the working leaf-only JS bridge."""
+    setup_logging()
+    run_application()
+
+
+def run_application():
     # Must happen BEFORE app.main is imported (it reads FOXBAT_DB at import time).
     configure_database()
+    # Set WebView2 flags before the Edge runtime is initialized.
+    # Override with FOXBAT_DISABLE_GPU=0 to compare rendering behavior.
+    disable_gpu = os.environ.get("FOXBAT_DISABLE_GPU", "1") != "0"
+    if disable_gpu:
+        args = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+        if "--disable-gpu" not in args.split():
+            os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (args + " --disable-gpu").strip()
+    logging.info("WebView2 GPU disabled: %s", disable_gpu)
+    # Production shell: integrated Foxbat title bar and native pywebview drag.
+    # Do not restore the old Win32 mouse polling code.
+    frameless = True
+    logging.info("Frameless window enabled: %s", frameless)
     import uvicorn
     import webview
     from app.main import app
@@ -162,19 +124,30 @@ def main():
         if not ready:
             raise RuntimeError("Foxbat local API did not start")
 
+        global _native_window, _native_maximized
+        _native_maximized = False
         controls = WindowControls()
-        controls.window = webview.create_window(
+        _native_window = webview.create_window(
             "Foxbat NIDS", url + "/?foxbat_desktop=1", width=1280, height=820,
             min_size=(900, 600), background_color="#060b09",
-            frameless=True, easy_drag=False, js_api=controls,
+            frameless=frameless, easy_drag=frameless, js_api=controls,
         )
         # Windows: pywebview uses Microsoft Edge WebView2 where available.
-        webview.start(gui="edge", debug=False)
+        # Keep WebView2's writable profile outside the installed application.
+        # The application can be upgraded without touching browser cache files.
+        webview_data = user_data_dir() / "webview2"
+        webview_data.mkdir(parents=True, exist_ok=True)
+        logging.info("Starting WebView2; profile directory: %s", webview_data)
+        webview.start(gui="edge", debug=False, storage_path=str(webview_data))
     finally:
         # Closing the window must release the packet capture device.
+        logging.info("Desktop closing")
+        _native_window = None
         capture.stop()
         server.should_exit = True
+        logging.info("Waiting up to 8 seconds for API thread to stop")
         thread.join(timeout=8)
+        logging.info("API thread still alive: %s", thread.is_alive())
         try:
             listener.close()
         except OSError:
@@ -185,6 +158,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
+        logging.exception("Desktop startup failed")
         # With --windowed, errors otherwise disappear without a console.
         if sys.platform == "win32":
             import ctypes

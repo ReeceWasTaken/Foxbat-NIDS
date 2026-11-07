@@ -11,7 +11,10 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
 AppPublisher={#AppPublisher}
-DefaultDirName={localappdata}\Programs\Foxbat NIDS
+; A per-user location outside Programs avoids the freeze seen on test machines.
+DefaultDirName={localappdata}\Foxbat NIDS
+; Do not silently reuse the v0.8.8 install directory during upgrades.
+UsePreviousAppDir=no
 DefaultGroupName={#AppName}
 PrivilegesRequired=lowest
 OutputDir=installer-output

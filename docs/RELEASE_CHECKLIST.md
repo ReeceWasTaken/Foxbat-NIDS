@@ -1,11 +1,14 @@
-# Foxbat public release checklist
+# Foxbat v0.8.14 release checklist
 
-- [ ] Confirm `VERSION` in `app/version.py` is `0.8.8` and UI/API/installer agree.
-- [ ] Select a LICENSE if you intend to permit third-party reuse.
-- [ ] Run Windows build and tests; confirm the installer launches and uninstalls.
-- [ ] Test Npcap capture, PCAP import, alerts, exports, window dragging, and shortcut icons.
-- [ ] Add sanitized screenshots; review files and Git history for secrets and personal network data.
-- [ ] Verify the installer signature is present, and disclose that self-signed certificates are not publicly trusted.
-- [ ] Run `./prepare-release.ps1` and verify its SHA-256 checksum.
-- [ ] Publish GitHub tag `v0.8.8` with installer, checksums, and release notes.
-- [ ] Download the public release and test it on a clean Windows system or VM.
+- [ ] Review the existing Git repository and its history for sensitive data.
+- [ ] Confirm `app/version.py`, UI, and installer all show `0.8.14`.
+- [ ] Decide whether to add an open-source license.
+- [ ] Add sanitized screenshots.
+- [ ] Build on Windows and run automated tests.
+- [ ] Test frameless dragging, resizing, minimize/maximize, and close/reopen.
+- [ ] Test live capture, offline PCAP import, alerts, exports, and SQLite persistence.
+- [ ] Test installer and uninstaller on Windows; back up existing database before upgrade.
+- [ ] Confirm only intended source files are committed; exclude generated binaries and signing secrets.
+- [ ] Run `./prepare-release.ps1` and verify SHA-256 checksum.
+- [ ] Publish tag `v0.8.14` and attach installer and checksum.
+- [ ] Test the published installer on a clean Windows environment.
