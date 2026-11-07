@@ -1,4 +1,13 @@
-# Foxbat NIDS
+<div align="center">
+  <img src="assets/Foxbat-logo.png" alt="Foxbat NIDS Logo" width="260">
+
+  <h1>Foxbat NIDS</h1>
+
+  <p><strong>Network Intrusion Detection System</strong></p>
+
+  <p>Network Visibility • Threat Detection • Defensive Research</p>
+</div>
+
 
 **Foxbat NIDS v0.8.14** is an experimental Windows network intrusion detection system featuring a retro terminal-style dashboard, local alert history, packet analysis, and an embedded Microsoft Edge WebView2 desktop interface.
 
